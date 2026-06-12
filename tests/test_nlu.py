@@ -174,6 +174,22 @@ def test_compound_command(state):
     assert all(r['ok'] for r in rs)
 
 
+def test_compound_draw_then_align(state):
+    """「画三个方块再全部左对齐」——『再』须正确切分，否则 draw 被 align 吞掉。"""
+    rs = run(state, '画一个笑脸放在中间然后画三个并排的蓝色方块再全部左对齐')
+    assert [r['intent'] for r in rs] == ['template', 'draw', 'align']
+    sq = [s for s in shapes(state) if s['type'] == 'square']
+    assert len(sq) == 3
+    lefts = [s['x'] - s['size'] for s in sq]
+    assert max(lefts) - min(lefts) < 0.01  # 已左对齐
+
+
+def test_split_keeps_parallel_layout(state):
+    """『并排』里的『并』不可被当作连接词切开。"""
+    rs = run(state, '画三个并排的方块')
+    assert len(rs) == 1 and rs[0]['intent'] == 'draw'
+
+
 def test_cross_clause_target(state):
     rs = run(state, '在右下角画一个空心的五角星然后逆时针旋转30度')
     assert all(r['ok'] for r in rs)
