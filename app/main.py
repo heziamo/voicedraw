@@ -36,7 +36,7 @@ def _session_payload(session_id, state, results=None):
 
 @app.get('/api/healthz')
 def healthz():
-    return {'status': 'ok', 'version': VERSION}
+    return {'status': 'ok', 'version': VERSION, 'store': store.BACKEND_NAME}
 
 
 @app.post('/api/sessions', status_code=201)

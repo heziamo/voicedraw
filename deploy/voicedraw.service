@@ -1,0 +1,21 @@
+[Unit]
+Description=VoiceDraw 纯语音绘图后端 (FastAPI + uvicorn)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/voicedraw
+# auto：服务器源码版 Python 3.8 缺 _sqlite3，会自动回退到 JSON 文件后端
+Environment=VOICEDRAW_STORE=auto
+Environment=VOICEDRAW_DB=/opt/voicedraw/voicedraw.db
+Environment=VOICEDRAW_DATA_DIR=/opt/voicedraw/data
+# uvicorn 内置 TLS：Web Speech API 需要 https 安全上下文才能授权麦克风
+ExecStart=/opt/voicedraw/venv/bin/uvicorn app.main:app \
+    --host 0.0.0.0 --port 8443 \
+    --ssl-keyfile /opt/voicedraw/certs/key.pem \
+    --ssl-certfile /opt/voicedraw/certs/cert.pem
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -5,11 +5,19 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-@pytest.fixture
-def client(tmp_path, monkeypatch):
+# 两个后端都跑一遍：sqlite（本地默认）+ json（服务器缺 _sqlite3 时的兜底）
+@pytest.fixture(params=['sqlite', 'json'])
+def client(tmp_path, monkeypatch, request):
+    monkeypatch.setenv('VOICEDRAW_STORE', request.param)
     monkeypatch.setenv('VOICEDRAW_DB', str(tmp_path / 'test.db'))
+    monkeypatch.setenv('VOICEDRAW_DATA_DIR', str(tmp_path / 'data'))
+    import app.store_sqlite
+    import app.store_json
+    importlib.reload(app.store_sqlite)
+    importlib.reload(app.store_json)
     from app import store
     importlib.reload(store)
+    assert store.BACKEND_NAME == request.param
     from app import main
     importlib.reload(main)
     return TestClient(main.app)
@@ -17,7 +25,9 @@ def client(tmp_path, monkeypatch):
 
 def test_healthz(client):
     r = client.get('/api/healthz')
-    assert r.status_code == 200 and r.json()['status'] == 'ok'
+    body = r.json()
+    assert r.status_code == 200 and body['status'] == 'ok'
+    assert body['store'] in ('sqlite', 'json')
 
 
 def test_session_lifecycle(client):
