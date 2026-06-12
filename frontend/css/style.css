@@ -1,0 +1,163 @@
+/* ============ Linear 设计令牌 ============ */
+:root{
+  --primary:#5e6ad2; --on-primary:#ffffff; --primary-hover:#828fff; --primary-focus:#5e69d1;
+  --ink:#f7f8f8; --ink-muted:#d0d6e0; --ink-subtle:#8a8f98; --ink-tertiary:#62666d;
+  --canvas:#010102; --surface-1:#0f1011; --surface-2:#141516; --surface-3:#18191a;
+  --hairline:#23252a; --hairline-strong:#34343a;
+  --success:#27a644; --danger:#e5484d;
+  --font-sans:'Inter','PingFang SC','Hiragino Sans GB','Microsoft YaHei',-apple-system,system-ui,sans-serif;
+  --font-mono:'JetBrains Mono','SF Mono',Menlo,'PingFang SC',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:var(--canvas); color:var(--ink); font-family:var(--font-sans);
+  font-size:14px; line-height:1.5; letter-spacing:-.05px;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+
+/* ============ 顶栏 ============ */
+.topbar{
+  height:56px; flex:0 0 56px; display:flex; align-items:center; gap:12px;
+  padding:0 20px; border-bottom:1px solid var(--hairline); background:var(--canvas);
+}
+.brand{display:flex; align-items:center; gap:10px}
+.brand-mark{
+  width:22px; height:22px; border-radius:6px; background:var(--primary);
+  display:flex; align-items:center; justify-content:center; flex:0 0 22px;
+}
+.brand-mark svg{width:13px;height:13px;stroke:#fff}
+.brand-name{font-size:15px; font-weight:600; letter-spacing:-.3px}
+.brand-sub{font-size:12px; color:var(--ink-tertiary); margin-left:2px}
+.topbar-right{margin-left:auto; display:flex; align-items:center; gap:8px}
+.pill{
+  display:inline-flex; align-items:center; gap:6px; padding:3px 10px;
+  border-radius:9999px; background:var(--surface-2); color:var(--ink-muted);
+  font-size:12px; line-height:1.4; border:1px solid var(--hairline);
+}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:var(--ink-tertiary)}
+.pill.live .dot{background:var(--success)}
+.pill.accent .dot{background:var(--primary)}
+.pill.err .dot{background:var(--danger)}
+
+/* ============ 主体布局 ============ */
+.main{flex:1; display:grid; grid-template-columns:1fr 360px; gap:16px; padding:16px; min-height:0}
+@media (max-width:1024px){ .main{grid-template-columns:1fr 300px} }
+
+.canvas-panel{
+  background:var(--surface-1); border:1px solid var(--hairline); border-radius:16px;
+  padding:16px; display:flex; flex-direction:column; min-width:0; min-height:0; position:relative;
+}
+.canvas-head{display:flex; align-items:center; gap:8px; margin-bottom:12px}
+.eyebrow{font-size:13px; font-weight:500; letter-spacing:.4px; color:var(--ink-subtle)}
+.canvas-head .count{margin-left:auto}
+.artboard-wrap{flex:1; min-height:0; position:relative; border-radius:8px; overflow:hidden}
+#board{display:block; width:100%; height:100%}
+.hint{
+  position:absolute; inset:0; display:flex; flex-direction:column; gap:8px;
+  align-items:center; justify-content:center; pointer-events:none; text-align:center;
+}
+.hint .h-title{font-size:20px; font-weight:600; letter-spacing:-.4px; color:#9aa0aa}
+.hint .h-cmd{font-family:var(--font-mono); font-size:13px; color:#7a8089;
+  background:rgba(1,1,2,.06); border:1px solid rgba(1,1,2,.1); padding:4px 12px; border-radius:6px}
+.hint.dark-bg .h-title{color:rgba(255,255,255,.55)}
+.hint.dark-bg .h-cmd{color:rgba(255,255,255,.5); background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.12)}
+
+/* ============ 侧栏 ============ */
+.sidebar{display:flex; flex-direction:column; gap:12px; min-height:0}
+.panel{
+  background:var(--surface-1); border:1px solid var(--hairline); border-radius:12px;
+  padding:16px; display:flex; flex-direction:column; gap:10px;
+}
+.panel-title{font-size:13px; font-weight:500; letter-spacing:.4px; color:var(--ink-subtle)}
+
+.mic-row{display:flex; align-items:center; gap:12px}
+.mic-ring{
+  width:42px; height:42px; flex:0 0 42px; border-radius:50%;
+  border:1px solid var(--hairline-strong); background:var(--surface-2);
+  display:flex; align-items:center; justify-content:center; position:relative;
+}
+.mic-ring svg{width:18px;height:18px;stroke:var(--ink-subtle)}
+.mic-ring.on{border-color:var(--primary)}
+.mic-ring.on svg{stroke:var(--primary-hover)}
+.mic-ring.on::after{
+  content:''; position:absolute; inset:-1px; border-radius:50%;
+  border:1px solid var(--primary); animation:pulse 1.8s ease-out infinite;
+}
+@keyframes pulse{ 0%{transform:scale(1);opacity:.7} 100%{transform:scale(1.55);opacity:0} }
+.mic-meta{min-width:0}
+.mic-state{font-size:14px; font-weight:500}
+.mic-desc{font-size:12px; color:var(--ink-subtle)}
+.bars{display:flex; gap:3px; align-items:flex-end; height:16px; margin-left:auto}
+.bars i{width:3px; border-radius:2px; background:var(--primary); height:4px; opacity:.35}
+.bars.on i{opacity:1; animation:bar .9s ease-in-out infinite}
+.bars i:nth-child(2){animation-delay:.15s} .bars i:nth-child(3){animation-delay:.3s}
+.bars i:nth-child(4){animation-delay:.45s} .bars i:nth-child(5){animation-delay:.6s}
+@keyframes bar{ 0%,100%{height:4px} 50%{height:15px} }
+.transcript{
+  min-height:44px; border-radius:8px; background:var(--surface-2); border:1px solid var(--hairline);
+  padding:8px 12px; font-family:var(--font-mono); font-size:13px; line-height:1.5; color:var(--ink-muted);
+}
+.transcript .placeholder{color:var(--ink-tertiary)}
+.transcript.final{border-color:var(--hairline-strong); color:var(--ink)}
+
+.panel.log-panel{flex:1; min-height:0}
+.log{flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px; min-height:0; padding-right:2px}
+.log::-webkit-scrollbar{width:8px}
+.log::-webkit-scrollbar-thumb{background:var(--hairline-strong); border-radius:4px}
+.log-item{
+  border:1px solid var(--hairline); border-left:2px solid var(--ink-tertiary);
+  border-radius:8px; background:var(--surface-2); padding:8px 10px;
+}
+.log-item.ok{border-left-color:var(--success)}
+.log-item.err{border-left-color:var(--danger)}
+.log-item.info{border-left-color:var(--primary)}
+.log-said{font-family:var(--font-mono); font-size:12px; color:var(--ink-muted); word-break:break-all}
+.log-res{font-size:12px; color:var(--ink-subtle); margin-top:3px}
+.log-item.ok .log-res{color:#5fbf77}
+.log-item.err .log-res{color:#e5757a}
+.log-time{float:right; font-size:11px; color:var(--ink-tertiary); font-family:var(--font-mono)}
+.log-empty{font-size:12px; color:var(--ink-tertiary); padding:4px 2px}
+
+.cmds{display:flex; flex-wrap:wrap; gap:6px}
+.cmd{
+  font-family:var(--font-mono); font-size:12px; color:var(--ink-muted);
+  background:var(--surface-2); border:1px solid var(--hairline); border-radius:6px; padding:3px 8px;
+}
+
+/* ============ 遮罩层 ============ */
+.overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:50;
+  display:flex; align-items:center; justify-content:center; padding:24px;
+}
+.overlay.hidden{display:none}
+.card{
+  background:var(--surface-1); border:1px solid var(--hairline-strong); border-radius:16px;
+  padding:40px; max-width:560px; width:100%;
+}
+.card h1{font-size:28px; font-weight:600; letter-spacing:-.6px; line-height:1.2; margin-bottom:10px}
+.card p{font-size:14px; color:var(--ink-subtle); margin-bottom:8px}
+.card .examples{margin:18px 0 22px; display:flex; flex-direction:column; gap:8px}
+.card .examples .cmd{align-self:flex-start; font-size:13px; padding:5px 12px}
+.btn-primary{
+  display:inline-flex; align-items:center; gap:8px; border:none; cursor:pointer;
+  background:var(--primary); color:var(--on-primary); font-family:var(--font-sans);
+  font-size:14px; font-weight:500; line-height:1.2; padding:10px 18px; border-radius:8px;
+}
+.btn-primary:hover{background:var(--primary-hover)}
+.btn-primary:disabled{background:var(--surface-3); color:var(--ink-tertiary); cursor:not-allowed}
+.warn{color:var(--danger); font-size:13px; margin-top:12px}
+.note{font-size:12px; color:var(--ink-tertiary); margin-top:14px}
+
+.help-card{max-width:880px; max-height:86vh; overflow-y:auto}
+.help-grid{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:18px}
+@media (max-width:760px){ .help-grid{grid-template-columns:1fr} }
+.help-group h3{font-size:13px; font-weight:500; letter-spacing:.4px; color:var(--ink-subtle); margin-bottom:8px}
+.help-group table{width:100%; border-collapse:collapse}
+.help-group td{
+  padding:5px 8px 5px 0; font-size:12.5px; color:var(--ink-muted);
+  border-bottom:1px solid var(--hairline); vertical-align:top;
+}
+.help-group td:first-child{font-family:var(--font-mono); white-space:nowrap; color:var(--ink); padding-right:14px}
+.help-close-tip{margin-top:20px; font-size:13px; color:var(--ink-subtle)}
+.help-close-tip .cmd{margin:0 4px}

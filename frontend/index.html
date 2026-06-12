@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>声笔 VoiceDraw — 纯语音绘图工具</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='6' fill='%235e6ad2'/><path d='M5 12h2M9 8v8M13 5v14M17 9v6M20 11v2' stroke='white' stroke-width='1.8' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round">
+        <path d="M3 12h2M8 7v10M13 4v16M18 9v6M21 11v2"/>
+      </svg>
+    </div>
+    <span class="brand-name">声笔 VoiceDraw</span>
+    <span class="brand-sub">纯语音绘图 · 前后端版</span>
+  </div>
+  <div class="topbar-right">
+    <span class="pill" id="pill-session"><span class="dot"></span>会话连接中</span>
+    <span class="pill" id="pill-shapes"><span class="dot"></span>0 个图形</span>
+    <span class="pill" id="pill-tts"><span class="dot"></span>播报开</span>
+    <span class="pill" id="pill-mic"><span class="dot"></span>未启动</span>
+  </div>
+</header>
+
+<main class="main">
+  <section class="canvas-panel">
+    <div class="canvas-head">
+      <span class="eyebrow">画布 CANVAS</span>
+      <span class="eyebrow count" id="canvas-meta"></span>
+    </div>
+    <div class="artboard-wrap">
+      <canvas id="board"></canvas>
+      <div class="hint" id="hint">
+        <div class="h-title">对我说出你想画的</div>
+        <div class="h-cmd" id="hint-cmd">“画一个红色的圆”</div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="sidebar">
+    <div class="panel">
+      <div class="panel-title">语音状态 VOICE</div>
+      <div class="mic-row">
+        <div class="mic-ring" id="mic-ring">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
+        </div>
+        <div class="mic-meta">
+          <div class="mic-state" id="mic-state">未启动</div>
+          <div class="mic-desc" id="mic-desc">等待初始化</div>
+        </div>
+        <div class="bars" id="bars"><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+      <div class="transcript" id="transcript"><span class="placeholder">实时识别结果会显示在这里…</span></div>
+    </div>
+
+    <div class="panel log-panel">
+      <div class="panel-title">指令日志 LOG</div>
+      <div class="log" id="log"><div class="log-empty">尚无指令。试着说一句话。</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">常用指令 · 说「帮助」查看全部</div>
+      <div class="cmds">
+        <span class="cmd">画一个红色的圆</span>
+        <span class="cmd">画三个并排的蓝色方块</span>
+        <span class="cmd">把它变成绿色</span>
+        <span class="cmd">向左移动50像素</span>
+        <span class="cmd">放大一点</span>
+        <span class="cmd">撤销</span>
+        <span class="cmd">清空画布</span>
+        <span class="cmd">保存图片</span>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- 启动遮罩：浏览器要求一次用户手势才能开启麦克风，此后全程语音 -->
+<div class="overlay" id="start-overlay">
+  <div class="card">
+    <h1>开口即画。</h1>
+    <p>声笔是一款纯语音控制的绘图工具——不用鼠标，不用键盘，说出指令即可创作。语音在浏览器识别，指令由 Python 后端解析执行，作品自动保存在服务器。</p>
+    <div class="examples">
+      <span class="cmd">“画一个红色的大圆在左上角”</span>
+      <span class="cmd">“画三个并排的蓝色方块，然后把背景换成黑色”</span>
+      <span class="cmd">“把第二个方块变成黄色，再放大一点”</span>
+    </div>
+    <button class="btn-primary" id="btn-start">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+      </svg>
+      开始语音创作
+    </button>
+    <div class="warn" id="start-warn" style="display:none"></div>
+    <div class="note">受浏览器安全策略限制，开启麦克风需要这一次点击；之后的所有操作均通过语音完成。建议使用 Chrome 或 Edge 浏览器，并允许麦克风权限。</div>
+  </div>
+</div>
+
+<!-- 帮助面板（语音开关：「帮助」/「关闭帮助」） -->
+<div class="overlay hidden" id="help-overlay">
+  <div class="card help-card">
+    <h1>指令手册</h1>
+    <p>所有指令都支持自然语序与同义说法，可用「然后 / 接着 / 再」把多条指令连成一句话。</p>
+    <div class="help-grid">
+      <div class="help-group">
+        <h3>绘制</h3>
+        <table>
+          <tr><td>画一个〔颜色〕〔大小〕〔图形〕</td><td>画一个红色的大圆</td></tr>
+          <tr><td>画 N 个…〔并排/竖排/随机〕</td><td>画五个并排的绿色星星</td></tr>
+          <tr><td>…在〔位置〕</td><td>在左上角画一个三角形</td></tr>
+          <tr><td>画一个空心的…</td><td>画一个空心的蓝色方块</td></tr>
+          <tr><td>写上〔内容〕</td><td>写上你好世界</td></tr>
+          <tr><td>再来一个</td><td>复制上一个图形</td></tr>
+        </table>
+        <h3 style="margin-top:14px">支持的图形</h3>
+        <table><tr><td colspan="2">圆形 · 椭圆 · 正方形 · 长方形 · 三角形 · 五角星 · 心形 · 直线 · 竖线 · 箭头 · 文字</td></tr></table>
+        <h3 style="margin-top:14px">位置词</h3>
+        <table><tr><td colspan="2">左上角 · 右上角 · 左下角 · 右下角 · 中间 · 上面 · 下面 · 左边 · 右边</td></tr></table>
+      </div>
+      <div class="help-group">
+        <h3>修改</h3>
+        <table>
+          <tr><td>把〔目标〕变成〔颜色〕</td><td>把第二个圆变成蓝色</td></tr>
+          <tr><td>向〔方向〕移动 N 像素</td><td>向左移动50像素</td></tr>
+          <tr><td>把…移到〔位置〕</td><td>把它移到中间</td></tr>
+          <tr><td>放大 / 缩小〔一点 / N倍〕</td><td>放大一倍</td></tr>
+          <tr><td>旋转〔N度〕</td><td>逆时针旋转45度</td></tr>
+          <tr><td>改成空心 / 实心</td><td>把星星改成空心</td></tr>
+        </table>
+        <h3 style="margin-top:14px">选择与删除</h3>
+        <table>
+          <tr><td>选中〔第N个 / 所有 / 最后一个〕</td><td>选中所有圆形</td></tr>
+          <tr><td>删除〔目标〕</td><td>删除最后一个</td></tr>
+        </table>
+        <h3 style="margin-top:14px">画布与系统</h3>
+        <table>
+          <tr><td>背景换成〔颜色〕</td><td>背景换成黑色</td></tr>
+          <tr><td>撤销 / 重做</td><td>取消上一步 / 恢复</td></tr>
+          <tr><td>清空画布</td><td>全部重新开始</td></tr>
+          <tr><td>保存图片</td><td>导出 PNG</td></tr>
+          <tr><td>暂停聆听 / 继续聆听</td><td>临时静音指令执行</td></tr>
+          <tr><td>关闭播报 / 打开播报</td><td>开关语音反馈</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="help-close-tip">说<span class="cmd">关闭帮助</span>即可返回画布。</div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
