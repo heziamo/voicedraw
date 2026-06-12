@@ -1,0 +1,4 @@
+# 锁定为兼容服务器 Python 3.8 (CentOS 7, glibc 2.17) 的版本
+fastapi==0.110.3
+uvicorn==0.29.0
+pydantic==2.7.1
