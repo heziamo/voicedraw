@@ -28,7 +28,10 @@ def _session_payload(session_id, state, results=None):
         'session_id': session_id,
         'scene': state['scene'],
         'selected': state['selected'],
-        'flags': {'muted': state['muted'], 'tts_on': state['tts_on']},
+        'flags': {
+            'muted': state['muted'], 'tts_on': state['tts_on'],
+            'can_undo': len(state['history']) > 0, 'can_redo': len(state['redo']) > 0,
+        },
         'logical': {'w': LOGICAL_W, 'h': LOGICAL_H},
         'results': results or [],
     }
