@@ -120,18 +120,15 @@ def _placeholder(prompt):
     y0 = 470 - (len(lines) - 1) * 39
     svg = (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">'
-        '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
-        '<stop offset="0" stop-color="#191b3a"/><stop offset="1" stop-color="#0a0a14"/>'
-        '</linearGradient></defs>'
-        '<rect width="1024" height="1024" fill="url(#g)"/>'
-        '<rect x="44" y="44" width="936" height="936" rx="28" fill="none" '
-        'stroke="#5e6ad2" stroke-opacity="0.4" stroke-width="2"/>'
-        '<text x="512" y="150" text-anchor="middle" fill="#828fff" '
+        '<rect width="1024" height="1024" fill="#f4f6fb"/>'
+        '<rect x="44" y="44" width="936" height="936" rx="28" fill="#ffffff" '
+        'stroke="#3b6cf6" stroke-opacity="0.35" stroke-width="2"/>'
+        '<text x="512" y="150" text-anchor="middle" fill="#3b6cf6" '
         'font-family="Inter,sans-serif" font-size="30" letter-spacing="3">VOICEDRAW · AI 生成</text>'
-        '<text x="512" y="' + str(y0) + '" text-anchor="middle" fill="#f7f8f8" '
+        '<text x="512" y="' + str(y0) + '" text-anchor="middle" fill="#1a1a1f" '
         'font-family="Inter,PingFang SC,sans-serif" font-size="58" font-weight="600">'
         + tspans + '</text>'
-        '<text x="512" y="900" text-anchor="middle" fill="#8a8f98" '
+        '<text x="512" y="900" text-anchor="middle" fill="#8b8f96" '
         'font-family="Inter,sans-serif" font-size="28">占位图 · 在服务器配置智谱 CogView Key 后生成真实图片</text>'
         '</svg>')
     src = _save(svg, 'svg', mode='w')

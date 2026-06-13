@@ -67,7 +67,7 @@ def test_draw_hollow(state):
 
 def test_draw_default_color_is_brand(state):
     run(state, '画一个圆')
-    assert shapes(state)[0]['color'] == '#5e6ad2'
+    assert shapes(state)[0]['color'] == '#3b6cf6'
 
 
 def test_text_with_color_prefix(state):

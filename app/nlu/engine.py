@@ -437,7 +437,7 @@ _HOLLOW_RE = re.compile(r'空心|镂空|描边|只要边框')
 
 def _i_draw(state, t):
     shape = find_shape(t)
-    color = find_color(t) or {'hex': '#5e6ad2', 'label': ''}
+    color = find_color(t) or {'hex': '#3b6cf6', 'label': ''}  # 缺省＝智谱蓝
     size = find_size(t) or {'size': 55, 'label': ''}
     pos = find_position(t)
     hollow = bool(_HOLLOW_RE.search(t))

@@ -14,6 +14,11 @@ let flags = { muted: false, tts_on: true, can_undo: false, can_redo: false };
 let LOGICAL = { w: 1200, h: 750 };
 const ui = { started: false, listening: false, speaking: false };
 const viewCfg = { userZoom: 1, showGrid: true };
+// 画布绘制配色（浅色主题：白板浮在浅灰工作区）
+const CANVAS = {
+  area: '#eef0f3', shadow: 'rgba(20,22,30,.16)', border: 'rgba(0,0,0,.10)',
+  accent: '#3b6cf6', imgPh: '#eef0f3', imgPhText: '#9aa0a6',
+};
 
 const LABELS = {
   circle: '圆形', square: '正方形', rect: '长方形', triangle: '三角形', star: '五角星',
@@ -65,22 +70,22 @@ function isDark(hex) {
 
 function render() {
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#0a0a0b'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = CANVAS.area; ctx.fillRect(0, 0, W, H);
   ctx.save();
   ctx.translate(view.ox, view.oy); ctx.scale(view.scale, view.scale);
   // 画板阴影 + 背景
-  ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 30 / view.scale; ctx.shadowOffsetY = 8 / view.scale;
+  ctx.shadowColor = CANVAS.shadow; ctx.shadowBlur = 26 / view.scale; ctx.shadowOffsetY = 6 / view.scale;
   ctx.fillStyle = scene.bg; ctx.fillRect(0, 0, LOGICAL.w, LOGICAL.h);
   ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
   if (viewCfg.showGrid) {
-    ctx.fillStyle = isDark(scene.bg) ? 'rgba(255,255,255,.09)' : 'rgba(1,1,2,.09)';
+    ctx.fillStyle = isDark(scene.bg) ? 'rgba(255,255,255,.10)' : 'rgba(1,1,2,.08)';
     for (let x = 30; x < LOGICAL.w; x += 36)
       for (let y = 30; y < LOGICAL.h; y += 36) ctx.fillRect(x, y, 1.6, 1.6);
   }
   for (const s of scene.shapes) drawShape(ctx, s);
   for (const s of scene.shapes) if (selected.includes(s.id)) drawSelection(s);
   // 画板边框
-  ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1 / view.scale;
+  ctx.strokeStyle = CANVAS.border; ctx.lineWidth = 1 / view.scale;
   ctx.strokeRect(0, 0, LOGICAL.w, LOGICAL.h);
   ctx.restore();
 }
@@ -181,8 +186,8 @@ function drawShape(c, s) {
       if (rec.ready) {
         c.drawImage(rec.img, -w / 2, -h / 2, w, h);
       } else {
-        c.fillStyle = '#1a1b1e'; c.fillRect(-w / 2, -h / 2, w, h);
-        c.fillStyle = '#62666d'; c.font = '600 ' + (r * .14) + "px Inter,sans-serif";
+        c.fillStyle = CANVAS.imgPh; c.fillRect(-w / 2, -h / 2, w, h);
+        c.fillStyle = CANVAS.imgPhText; c.font = '600 ' + (r * .14) + "px Inter,sans-serif";
         c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('图片加载中…', 0, 0);
       }
       break;
@@ -210,9 +215,9 @@ function bbox(s) {
 function drawSelection(s) {
   const b = bbox(s), pad = 9;
   ctx.save(); ctx.translate(s.x, s.y);
-  ctx.strokeStyle = '#5e6ad2'; ctx.lineWidth = 1.5 / view.scale; ctx.setLineDash([5, 4]);
+  ctx.strokeStyle = CANVAS.accent; ctx.lineWidth = 1.5 / view.scale; ctx.setLineDash([5, 4]);
   ctx.strokeRect(-b.w - pad, -b.h - pad, (b.w + pad) * 2, (b.h + pad) * 2);
-  ctx.setLineDash([]); ctx.fillStyle = '#5e6ad2';
+  ctx.setLineDash([]); ctx.fillStyle = CANVAS.accent;
   const hs = 6 / view.scale;
   for (const [hx, hy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
     ctx.fillRect(hx * (b.w + pad) - hs / 2, hy * (b.h + pad) - hs / 2, hs, hs);
