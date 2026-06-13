@@ -93,6 +93,14 @@ def test_generate_image_placeholder_flow(client):
     assert any(c['intent'] == 'generate' for c in client.get(f'/api/sessions/{sid}/commands').json()['commands'])
 
 
+def test_image_ext_sniffed_from_bytes():
+    """扩展名按真实文件头判断，而非信任响应头（CogView 实测返回 jpeg）。"""
+    from app import imagegen
+    assert imagegen._sniff_ext(b'\xff\xd8\xff\xe0\x00\x10JFIF') == 'jpg'
+    assert imagegen._sniff_ext(b'\x89PNG\r\n\x1a\n' + b'\x00' * 8) == 'png'
+    assert imagegen._sniff_ext(b'RIFF\x00\x00\x00\x00WEBP') == 'webp'
+
+
 def test_generate_image_persists(client):
     sid = client.post('/api/sessions').json()['session_id']
     client.post(f'/api/sessions/{sid}/generate', json={'prompt': '一只猫'})

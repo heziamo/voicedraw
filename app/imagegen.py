@@ -88,9 +88,19 @@ def _zhipu(prompt):
 
 def _download(url):
     with urllib.request.urlopen(url, timeout=TIMEOUT) as r:
-        ct = (r.headers.get('Content-Type') or 'image/png').lower()
-        ext = 'jpg' if ('jpeg' in ct or 'jpg' in ct) else 'webp' if 'webp' in ct else 'png'
-        return r.read(), ext
+        data = r.read()
+    return data, _sniff_ext(data)
+
+
+def _sniff_ext(data):
+    """按文件头判断真实图片格式（CogView 的 CDN 响应头可能与实际字节不符）。"""
+    if data[:3] == b'\xff\xd8\xff':
+        return 'jpg'
+    if data[:8] == b'\x89PNG\r\n\x1a\n':
+        return 'png'
+    if data[:4] == b'RIFF' and data[8:12] == b'WEBP':
+        return 'webp'
+    return 'png'
 
 
 # ---------------- 占位图（无 Key 时） ----------------
