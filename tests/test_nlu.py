@@ -405,12 +405,12 @@ def test_image_is_editable_target(state):
 # ---------- LLM 兜底理解（规则失败时大模型纠错） ----------
 
 def test_llm_rescue_corrects_misheard(state, monkeypatch):
-    """规则听不懂「红色的缘」，LLM 还原为「画一个红色的圆」并执行。"""
+    """规则听不懂「搞个红色的圆球」（无绘制动词），LLM 还原为标准指令并执行。"""
     import app.llm as llm
     monkeypatch.setattr(llm, 'available', lambda: True)
     monkeypatch.setattr(llm, 'interpret', lambda text, ctx='': '画一个红色的圆')
-    r = run(state, '画一个红色的缘')
-    assert r[0]['ok'] and r[0]['via'] == 'ai' and r[0]['original'] == '画一个红色的缘'
+    r = run(state, '搞个红色的圆球')
+    assert r[0]['ok'] and r[0]['via'] == 'ai' and r[0]['original'] == '搞个红色的圆球'
     s = shapes(state)[0]
     assert s['type'] == 'circle' and s['color'] == '#e5484d'
 
@@ -434,8 +434,35 @@ def test_llm_rescue_none_keeps_fallback(state, monkeypatch):
 
 def test_no_llm_keeps_fallback(state):
     """未配置 Key 时（测试环境无 key），规则失败仍是普通 fallback，不报错。"""
-    r = run(state, '画一个红色的缘')
+    r = run(state, '搞个红色的圆球')
     assert r[0]['intent'] == 'fallback'
+
+
+# ---------- 画实物 → AI 文生图兜底（确定性，不依赖 LLM） ----------
+
+@pytest.mark.parametrize('text,prompt', [
+    ('画一个红色的鱼', '红色的鱼'),
+    ('画一只可爱的小猫', '可爱的小猫'),
+    ('画一辆红色的汽车', '红色的汽车'),
+    ('画一座大山', '大山'),
+    ('给我画一条龙', '龙'),
+    ('画个皮卡丘', '皮卡丘'),
+])
+def test_draw_unknown_object_routes_to_image(state, text, prompt):
+    """「画+实物」既非图形也非模板时，确定性路由到 AI 文生图（无需 LLM）。"""
+    r = run(state, text)
+    assert r[0]['intent'] == 'draw_object'
+    assert r[0]['action'] == 'generate_image'
+    assert r[0]['prompt'] == prompt
+    assert shapes(state) == []  # 解析阶段不改场景，真正出图在 /generate 端点
+
+
+def test_draw_known_shape_stays_vector(state):
+    """已知图形/模板不被实物兜底抢走，仍走矢量绘制。"""
+    assert run(state, '画一个红色的圆')[0]['intent'] == 'draw'
+    assert run(state, '画一棵树')[0]['intent'] == 'template'
+    # 同音错字「缘」在归一化阶段被矫正为「圆」，画成矢量而非 AI 图
+    assert run(state, '画一个红色的缘')[0]['intent'] == 'draw'
 
 
 def test_clean_command_skips_llm(state, monkeypatch):

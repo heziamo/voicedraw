@@ -282,10 +282,17 @@ def _i_template(state, t):
 
 # ---------------- 文生图（大模型） ----------------
 
-_GEN_PREFIX_RE = re.compile(
-    r'^(请|帮我|帮忙|给我)?(用|调用)?([Aa][Ii]|大模型|模型|智能)?'
-    r'(生成|绘制|画出|画|来)(一张|一幅|一个|个|张|幅)?')
+# 句首的「请/帮我 + 用AI/大模型 + 生成/画/做 + 数量量词」整体剥离，剩下的就是画面描述
+_OBJ_PREFIX_RE = re.compile(
+    r'^(请|帮我|帮忙|给我|麻烦|能不能|能否|可以|想要|我想|我要)*'
+    r'(用\s*[Aa]?[Ii]?\s*|用大模型\s*|用模型\s*|调用大模型\s*)?'
+    r'(生成|绘制|绘出|描绘|画出来|画出|画上|画好|画|创建|做出来|做出|做|来|加上|添加|给我|给|要)')
+_OBJ_COUNT_RE = re.compile(
+    r'^(' + NUM_CLASS + r')?\s*[个只条头匹张幅朵棵辆架座盆杯碗群片对双堆位]')
 _GEN_SUFFIX_RE = re.compile(r'(的)?(图片|照片|图像|图画|画面|图)$')
+# 抽取后若只剩这些语气/收尾词，说明不是实物，不该当作画面描述
+_NOT_OBJ_RE = re.compile(
+    r'^(了|的|吧|啊|呢|哦|嘛|好了|完了|完成|好啦|出来了?|不出来?|不了|对了|错了|完毕|一下|一点)?$')
 
 
 def _gen_match(t):
@@ -303,9 +310,12 @@ def _gen_match(t):
 
 
 def _extract_prompt(t):
-    s = _GEN_PREFIX_RE.sub('', t)
+    """从「画/生成/做一个X」里抽取实物描述 X（去掉动词、数量量词、图片后缀）。"""
+    s = (t or '').strip()
+    s = _OBJ_PREFIX_RE.sub('', s, count=1)
+    s = _OBJ_COUNT_RE.sub('', s, count=1)
+    s = re.sub(r'^一', '', s)            # 残留的「一」
     s = _GEN_SUFFIX_RE.sub('', s)
-    s = re.sub(r'^(一张|一幅|一个|这|那)', '', s)
     return s.strip()
 
 
@@ -316,6 +326,30 @@ def _i_generate(state, t):
         return _err('没听清要生成什么图片，试试「生成一张星空下的城堡」')
     r = _ok('正在生成「%s」…' % (prompt if len(prompt) <= 18 else prompt[:17] + '…'),
             action='generate_image')
+    r['prompt'] = prompt
+    return r
+
+
+def _draw_object_match(t):
+    """「画/做一个X」但 X 既不是已知图形、也不是复合模板（鱼/猫/汽车/皮卡丘…）→ 文生图兜底。
+
+    这是确定性路由：不依赖 LLM 纠错，凡是「画+实物」都能落到 AI 出图，
+    彻底解决「画一个红色的鱼 → 没听懂」。已知图形/模板由更高优先级意图先行处理。
+    """
+    if not _DRAW_VERB_RE.search(t):
+        return False
+    if find_shape(t) or find_template(t):
+        return False
+    obj = _extract_prompt(t)
+    return bool(obj) and not _NOT_OBJ_RE.match(obj)
+
+
+def _i_draw_object(state, t):
+    prompt = _extract_prompt(t)
+    if not prompt:
+        return _err('没听清要画什么，试试「画一条鱼」或「画一个圆」')
+    short = prompt if len(prompt) <= 16 else prompt[:15] + '…'
+    r = _ok('「%s」没有现成图形，正在用 AI 绘制…' % short, action='generate_image')
     r['prompt'] = prompt
     return r
 
@@ -834,6 +868,7 @@ INTENTS = [
     ('opacity', lambda t: re.search(r'透明', t), _i_opacity),
     ('strokewidth', lambda t: re.search(r'加粗|变粗|粗一点|粗一些|更粗|变细|细一点|细一些|更细|描边粗细|线条粗细', t), _i_strokewidth),
     ('draw', lambda t: _DRAW_VERB_RE.search(t) and find_shape(t), _i_draw),
+    ('draw_object', _draw_object_match, _i_draw_object),
     ('move_to', lambda t: re.search(r'移到|移动到|放到|挪到|拖到|放在|移至', t), _i_move_to),
     ('move', lambda t: _MOVE_RE.match(t), _i_move),
     ('resize', lambda t: _RESIZE_SPLIT_RE.search(t), _i_resize),
