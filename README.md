@@ -2,9 +2,9 @@
 
 纯语音控制的绘图工具（前后端分离版）。不用鼠标、不用键盘，说出指令即可创作。
 
-<video src="https://raw.githubusercontent.com/heziamo/voicedraw/main/docs/demo.mp4" controls muted playsinline width="100%"></video>
+[![声笔 VoiceDraw 实际使用演示](docs/demo.gif)](docs/demo.mp4)
 
-> 🎬 线上实录：依次说出「画一个红色的圆 → 画一个笑脸放右上角 → 画三个并排蓝色方块 → 把第一个方块变成橙色 → **画一个红色的鱼**（实物 → 自动走 AI 文生图，智谱 CogView 实时出图）→ 把图片放大」。每条指令都经 `handleUtterance()`——与语音识别 `onresult` 完全相同的入口。点击 ▶ 播放（GitHub 不支持视频自动播放）；想要自动循环的 GIF 速览见 [docs/demo.gif](docs/demo.gif)。
+> 🎬 线上实录（点开上图看高清 [mp4](docs/demo.mp4)）：依次说出「画一个红色的圆 → 画一个笑脸放右上角 → 画三个并排蓝色方块 → 把第一个方块变成橙色 → **画一个红色的鱼**（实物 → 自动走 AI 文生图，智谱 CogView 实时出图）→ 把图片放大」。每条指令都经 `handleUtterance()`——与语音识别 `onresult` 完全相同的入口。
 
 **线上**：https://117.50.181.92:8443/ （自签名证书，首次访问点「高级 → 继续前往」；用 Chrome/Edge 并允许麦克风）
 
