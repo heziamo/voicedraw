@@ -20,7 +20,21 @@ const LABELS = {
   heart: '心形', line: '直线', vline: '竖线', arrow: '箭头', ellipse: '椭圆', text: '文字',
   hexagon: '六边形', pentagon: '五边形', diamond: '菱形', ring: '圆环', moon: '月亮',
   cloud: '云朵', lightning: '闪电', cross: '十字', speech: '对话气泡', smile: '笑容',
+  image: 'AI 图片',
 };
+
+/* 生成图片的位图缓存：src → HTMLImageElement（加载完触发重绘） */
+const imgCache = new Map();
+function getImage(src) {
+  let rec = imgCache.get(src);
+  if (!rec) {
+    rec = { img: new Image(), ready: false };
+    rec.img.onload = () => { rec.ready = true; render(); };
+    rec.img.src = src;
+    imgCache.set(src, rec);
+  }
+  return rec;
+}
 const SHAPE_LIB = ['圆', '方块', '三角形', '五角星', '六边形', '菱形', '心形', '圆环',
   '月亮', '云朵', '闪电', '箭头', '笑脸', '房子', '太阳', '树', '花'];
 
@@ -162,6 +176,17 @@ function drawShape(c, s) {
       c.font = '600 ' + (s.size * 1.2) + "px Inter,'PingFang SC','Microsoft YaHei',sans-serif";
       c.textAlign = 'center'; c.textBaseline = 'middle';
       fill ? c.fillText(s.text, 0, 0) : c.strokeText(s.text, 0, 0); break;
+    case 'image': {
+      const w = r * 2, h = w / (s.aspect || 1), rec = getImage(s.src);
+      if (rec.ready) {
+        c.drawImage(rec.img, -w / 2, -h / 2, w, h);
+      } else {
+        c.fillStyle = '#1a1b1e'; c.fillRect(-w / 2, -h / 2, w, h);
+        c.fillStyle = '#62666d'; c.font = '600 ' + (r * .14) + "px Inter,sans-serif";
+        c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('图片加载中…', 0, 0);
+      }
+      break;
+    }
   }
   c.restore();
 }
@@ -177,6 +202,7 @@ function bbox(s) {
   if (t === 'line') return { w: r * 1.5, h: Math.max(4, r * .12) };
   if (t === 'vline') return { w: Math.max(4, r * .12), h: r * 1.5 };
   if (t === 'arrow') return { w: r * 1.5, h: r * .4 };
+  if (t === 'image') return { w: r, h: r / (s.aspect || 1) };
   if (t === 'text') { ctx.font = '600 ' + (s.size * 1.2) + "px Inter,'PingFang SC',sans-serif"; return { w: ctx.measureText(s.text || '').width / 2 + 6, h: s.size * .75 }; }
   return { w: r, h: r };
 }
@@ -213,6 +239,7 @@ const GLYPH = {
   line: '<rect x="4" y="11" width="16" height="2.4" rx="1.2"/>',
   vline: '<rect x="11" y="4" width="2.4" height="16" rx="1.2"/>',
   text: '<path d="M6 6h12M12 6v12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  image: '<path d="M4 5h16v14H4Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="1.6"/><path d="M5 18l5-5 4 3 3-2 2 2v2H5Z"/>',
 };
 function glyph(type) {
   return '<svg viewBox="0 0 24 24" fill="currentColor" style="color:' + 'var(--ink-subtle)">' + (GLYPH[type] || GLYPH.square) + '</svg>';
@@ -270,16 +297,28 @@ function renderInspector() {
   }
   const s = sel[0];
   badge.textContent = '';
-  const rows = [
-    ['类型', (s.name ? s.name + ' · ' : '') + (LABELS[s.type] || s.type)],
-    ['位置', 'X ' + Math.round(s.x) + '  Y ' + Math.round(s.y)],
-    ['尺寸', Math.round(s.size) + (s.type === 'text' ? ' pt' : ' px')],
-    ['颜色', '<span class="insp-swatch" style="background:' + s.color + '"></span>' + s.color],
-    ['旋转', Math.round(s.rot || 0) + '°'],
-    ['透明度', Math.round((s.opacity == null ? 1 : s.opacity) * 100) + '%'],
-    ['填充', s.style === 'stroke' ? '空心 · 描边×' + (s.weight || 1).toFixed(1) : '实心'],
-  ];
-  if (s.flipX || s.flipY) rows.push(['翻转', [s.flipX ? '水平' : '', s.flipY ? '垂直' : ''].filter(Boolean).join(' ')]);
+  let rows;
+  if (s.type === 'image') {
+    rows = [
+      ['类型', 'AI 图片'],
+      ['描述', escapeHtml(s.prompt || '—')],
+      ['位置', 'X ' + Math.round(s.x) + '  Y ' + Math.round(s.y)],
+      ['尺寸', Math.round(s.size * 2) + ' px 宽'],
+      ['旋转', Math.round(s.rot || 0) + '°'],
+      ['透明度', Math.round((s.opacity == null ? 1 : s.opacity) * 100) + '%'],
+    ];
+  } else {
+    rows = [
+      ['类型', (s.name ? s.name + ' · ' : '') + (LABELS[s.type] || s.type)],
+      ['位置', 'X ' + Math.round(s.x) + '  Y ' + Math.round(s.y)],
+      ['尺寸', Math.round(s.size) + (s.type === 'text' ? ' pt' : ' px')],
+      ['颜色', '<span class="insp-swatch" style="background:' + s.color + '"></span>' + s.color],
+      ['旋转', Math.round(s.rot || 0) + '°'],
+      ['透明度', Math.round((s.opacity == null ? 1 : s.opacity) * 100) + '%'],
+      ['填充', s.style === 'stroke' ? '空心 · 描边×' + (s.weight || 1).toFixed(1) : '实心'],
+    ];
+    if (s.flipX || s.flipY) rows.push(['翻转', [s.flipX ? '水平' : '', s.flipY ? '垂直' : ''].filter(Boolean).join(' ')]);
+  }
   el.innerHTML = rows.map(([k, v]) =>
     '<div class="insp-row"><span class="insp-key">' + k + '</span><span class="insp-val">' + v + '</span></div>').join('');
 }
@@ -320,14 +359,15 @@ async function handleUtterance(raw) {
   const results = data.results || [];
   if (!results.length) return;
   const msgs = [];
-  for (const r of results) { msgs.push(r.msg); logItem(r.clause || raw, r.msg, r.ok ? 'ok' : 'err', ms); handleAction(r.action); }
+  for (const r of results) { msgs.push(r.msg); logItem(r.clause || raw, r.msg, r.ok ? 'ok' : 'err', ms); handleAction(r.action, r); }
   document.getElementById('lat-badge').textContent = '后端 ' + ms + 'ms';
   const summary = msgs.join('；');
   speak(summary.length > 56 ? summary.slice(0, 54) + '…' : summary);
 }
 
-function handleAction(action) {
+function handleAction(action, r) {
   if (!action) return;
+  if (action === 'generate_image') { generateImage(r.prompt); return; }
   const m = {
     help_open: () => helpEl.classList.remove('hidden'),
     help_close: () => helpEl.classList.add('hidden'),
@@ -338,6 +378,32 @@ function handleAction(action) {
     grid_on: () => setGrid(true), grid_off: () => setGrid(false),
   };
   if (m[action]) m[action]();
+}
+
+/* 文生图：耗时数秒，独立端点 + 加载遮罩 */
+let generating = false;
+async function generateImage(prompt) {
+  if (generating || !sessionId) return;
+  generating = true;
+  const ov = document.getElementById('gen-overlay');
+  document.getElementById('gen-prompt').textContent = '“' + prompt + '”';
+  ov.classList.remove('hidden');
+  const t0 = performance.now();
+  try {
+    const data = await api('POST', '/api/sessions/' + sessionId + '/generate', { prompt });
+    const ms = Math.round(performance.now() - t0);
+    applyState(data);
+    for (const r of (data.results || [])) {
+      logItem(r.clause || prompt, r.msg, r.ok ? 'ok' : 'err', ms);
+      speak(r.msg.length > 54 ? r.msg.slice(0, 52) + '…' : r.msg);
+    }
+  } catch (e) {
+    logItem(prompt, '生成请求失败：' + e.message, 'err');
+    speak('生成失败');
+  } finally {
+    generating = false;
+    ov.classList.add('hidden');
+  }
 }
 
 /* ============ 视图操作 ============ */
@@ -414,8 +480,8 @@ const transcriptEl = document.getElementById('transcript');
 const hintEl = document.getElementById('hint');
 const hintCmdEl = document.getElementById('hint-cmd');
 
-const HINTS = ['“画一个红色的圆”', '“画一个笑脸放在中间”', '“画三个并排的方块然后全部左对齐”',
-  '“画一个空心的六边形”', '“把它透明度设为一半”', '“画一座房子”'];
+const HINTS = ['“生成一张星空下的城堡的图片”', '“画一个笑脸放在中间”', '“画三个并排的方块然后全部左对齐”',
+  '“画一个空心的六边形”', '“把它透明度设为一半”', '“生成一只戴帽子的猫”'];
 let hintIdx = 0;
 setInterval(() => { if (!scene.shapes.length) { hintIdx = (hintIdx + 1) % HINTS.length; hintCmdEl.textContent = HINTS[hintIdx]; } }, 4000);
 

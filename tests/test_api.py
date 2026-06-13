@@ -13,8 +13,10 @@ def client(tmp_path, monkeypatch, request):
     monkeypatch.setenv('VOICEDRAW_DATA_DIR', str(tmp_path / 'data'))
     import app.store_sqlite
     import app.store_json
+    import app.imagegen
     importlib.reload(app.store_sqlite)
     importlib.reload(app.store_json)
+    importlib.reload(app.imagegen)   # 拾取临时 data 目录 + 无 Key（走占位）
     from app import store
     importlib.reload(store)
     assert store.BACKEND_NAME == request.param
@@ -69,3 +71,30 @@ def test_unknown_session_404(client):
 def test_empty_text_rejected(client):
     sid = client.post('/api/sessions').json()['session_id']
     assert client.post(f'/api/sessions/{sid}/commands', json={'text': ''}).status_code == 422
+
+
+def test_healthz_reports_image_config(client):
+    img = client.get('/api/healthz').json()['image']
+    assert img['provider'] == 'zhipu' and img['configured'] is False  # 测试环境无 Key
+
+
+def test_generate_image_placeholder_flow(client):
+    """无 API Key 时，/generate 走占位图，但整条链路（入场景 + 媒体可访问）应完整。"""
+    sid = client.post('/api/sessions').json()['session_id']
+    r = client.post(f'/api/sessions/{sid}/generate', json={'prompt': '星空下的城堡'})
+    body = r.json()
+    assert r.status_code == 200 and body['results'][0]['ok']
+    imgs = [s for s in body['scene']['shapes'] if s['type'] == 'image']
+    assert len(imgs) == 1 and imgs[0]['src'].startswith('/media/')
+    assert imgs[0]['prompt'] == '星空下的城堡'
+    # 生成的占位图可经 /media 访问
+    assert client.get(imgs[0]['src']).status_code == 200
+    # 审计日志记录了这次生成
+    assert any(c['intent'] == 'generate' for c in client.get(f'/api/sessions/{sid}/commands').json()['commands'])
+
+
+def test_generate_image_persists(client):
+    sid = client.post('/api/sessions').json()['session_id']
+    client.post(f'/api/sessions/{sid}/generate', json={'prompt': '一只猫'})
+    again = client.get(f'/api/sessions/{sid}').json()
+    assert any(s['type'] == 'image' for s in again['scene']['shapes'])

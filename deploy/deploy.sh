@@ -15,6 +15,7 @@ ssh "$SERVER" "mkdir -p ${REMOTE_DIR}"
 rsync -az --delete \
   --exclude venv --exclude __pycache__ --exclude '*.db' \
   --exclude certs --exclude .git --exclude .pytest_cache \
+  --exclude data --exclude .env \
   "$HERE"/ "$SERVER":"$REMOTE_DIR"/
 
 echo "==> [2/6] 创建 venv 并安装依赖（清华源，urllib3 兼容老 OpenSSL）"

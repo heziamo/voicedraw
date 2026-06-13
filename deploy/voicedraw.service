@@ -9,6 +9,12 @@ WorkingDirectory=/opt/voicedraw
 Environment=VOICEDRAW_STORE=auto
 Environment=VOICEDRAW_DB=/opt/voicedraw/voicedraw.db
 Environment=VOICEDRAW_DATA_DIR=/opt/voicedraw/data
+# 文生图：默认智谱 CogView。把 API Key 写进 /opt/voicedraw/.env 即启用真实生成：
+#   echo 'VOICEDRAW_IMAGE_API_KEY=你的key' > /opt/voicedraw/.env && systemctl restart voicedraw
+# 未配置 Key 时自动回退到占位图。.env 不进 git、不被 rsync 覆盖。
+Environment=VOICEDRAW_IMAGE_PROVIDER=zhipu
+Environment=VOICEDRAW_IMAGE_MODEL=cogview-3-flash
+EnvironmentFile=-/opt/voicedraw/.env
 # uvicorn 内置 TLS：Web Speech API 需要 https 安全上下文才能授权麦克风
 ExecStart=/opt/voicedraw/venv/bin/uvicorn app.main:app \
     --host 0.0.0.0 --port 8443 \

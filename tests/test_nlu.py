@@ -364,3 +364,39 @@ def test_zoom_and_grid_actions(state):
     assert run(state, '画布适应窗口')[0]['action'] == 'zoom_fit'
     assert run(state, '隐藏网格')[0]['action'] == 'grid_off'
     assert run(state, '显示网格')[0]['action'] == 'grid_on'
+
+
+# ---------- 文生图（大模型） ----------
+
+def test_generate_intent(state):
+    r = run(state, '生成一张星空下的城堡的图片')
+    assert r[0]['intent'] == 'generate' and r[0]['action'] == 'generate_image'
+    assert '星空下的城堡' in r[0]['prompt']
+    assert shapes(state) == []  # 解析阶段不改场景，真正生成在 /generate 端点
+
+
+@pytest.mark.parametrize('text,expect', [
+    ('生成一张可爱的小猫的图片', '可爱的小猫'),
+    ('用AI画一座雪山', '雪山'),
+    ('帮我生成一幅日落海滩', '日落海滩'),
+    ('画一张赛博朋克城市的图片', '赛博朋克城市'),
+])
+def test_generate_prompt_extraction(state, text, expect):
+    r = run(state, text)
+    assert r[0]['intent'] == 'generate' and expect in r[0]['prompt']
+
+
+def test_generate_does_not_eat_normal_draw(state):
+    """「生成一个圆」仍是参数化绘制，不走文生图。"""
+    r = run(state, '生成一个圆')
+    assert r[0]['intent'] == 'draw' and shapes(state)[0]['type'] == 'circle'
+
+
+def test_image_is_editable_target(state):
+    from app.nlu.engine import add_image
+    add_image(state, '/media/x.png', 1024, 1024, '一只猫')
+    assert shapes(state)[0]['type'] == 'image'
+    size0 = shapes(state)[0]['size']
+    assert run(state, '把图片放大')[0]['ok']
+    assert shapes(state)[0]['size'] > size0
+    assert run(state, '删除图片')[0]['ok'] and shapes(state) == []

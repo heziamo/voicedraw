@@ -9,5 +9,6 @@ data/
 .DS_Store
 certs/
 *.pem
+.env
 .idea/
 .vscode/

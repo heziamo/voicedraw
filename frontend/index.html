@@ -129,6 +129,16 @@
   </aside>
 </div>
 
+<!-- ============ 文生图加载遮罩 ============ -->
+<div class="gen-overlay hidden" id="gen-overlay">
+  <div class="gen-card">
+    <div class="gen-spinner"></div>
+    <div class="gen-title">AI 正在生成图片…</div>
+    <div class="gen-prompt" id="gen-prompt"></div>
+    <div class="gen-note">大模型出图约需 10–20 秒，请稍候</div>
+  </div>
+</div>
+
 <!-- ============ 启动遮罩 ============ -->
 <div class="overlay" id="start-overlay">
   <div class="card">
@@ -136,9 +146,9 @@
     <h1>开口即画。</h1>
     <p>不用鼠标、不用键盘——说出指令即可绘制、编辑、排版。语音在浏览器识别，指令由 Python 后端解析执行，作品实时保存在服务器。</p>
     <div class="examples">
-      <span class="cmd">“画一个笑脸放在中间”</span>
-      <span class="cmd">“画三个并排的蓝色方块，然后全部左对齐”</span>
-      <span class="cmd">“把第二个方块透明度设为一半，再置于顶层”</span>
+      <span class="cmd">“生成一张星空下的城堡的图片”（AI 文生图）</span>
+      <span class="cmd">“画一个笑脸放在中间，再画三个并排的蓝色方块”</span>
+      <span class="cmd">“把图片放大，再逆时针旋转15度”</span>
     </div>
     <button class="btn-primary" id="btn-start">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -166,6 +176,7 @@
           <tr><td>在〔位置〕画…</td><td>在左上角画一个菱形</td></tr>
           <tr><td>画一个空心的…</td><td>画一个空心的蓝色六边形</td></tr>
           <tr><td>写上〔内容〕</td><td>写上你好世界</td></tr>
+          <tr><td>生成一张〔描述〕的图片（AI）</td><td>生成一张星空下的城堡</td></tr>
         </table>
         <h3 style="margin-top:14px">复合模板</h3>
         <table><tr><td colspan="2">笑脸 · 房子 · 太阳 · 树 · 花 · 雪人（一句生成多部件，整组可一起编辑）</td></tr></table>

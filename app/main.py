@@ -7,20 +7,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import store
+from . import imagegen, store
 from .nlu import LOGICAL_H, LOGICAL_W, handle_utterance, new_state
+from .nlu.engine import add_image
 
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 
 app = FastAPI(title='VoiceDraw API', version=VERSION)
 app.add_middleware(
     CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
 
 store.init_db()
+imagegen.init()
 
 
 class CommandIn(BaseModel):
     text: str = Field(min_length=1, max_length=500)
+
+
+class GenerateIn(BaseModel):
+    prompt: str = Field(min_length=1, max_length=400)
 
 
 def _session_payload(session_id, state, results=None):
@@ -39,7 +45,8 @@ def _session_payload(session_id, state, results=None):
 
 @app.get('/api/healthz')
 def healthz():
-    return {'status': 'ok', 'version': VERSION, 'store': store.BACKEND_NAME}
+    return {'status': 'ok', 'version': VERSION, 'store': store.BACKEND_NAME,
+            'image': imagegen.status()}
 
 
 @app.post('/api/sessions', status_code=201)
@@ -76,6 +83,24 @@ def get_commands(session_id: str, limit: int = 50):
     return {'commands': store.list_commands(session_id, min(limit, 200))}
 
 
-# 前端静态文件（放在 API 路由之后注册，避免吞掉 /api/*）
+@app.post('/api/sessions/{session_id}/generate')
+def generate_image(session_id: str, body: GenerateIn):
+    """文生图：调用大模型（或占位），把结果作为图片对象加入场景。耗时数秒。"""
+    state = store.load_session(session_id)
+    if state is None:
+        raise HTTPException(404, '会话不存在')
+    res = imagegen.generate(body.prompt)
+    result = [{'ok': bool(res.get('ok')), 'msg': res['msg'],
+               'intent': 'generate', 'clause': body.prompt}]
+    if res.get('ok'):
+        add_image(state, res['src'], res['w'], res['h'], body.prompt)
+        store.save_session(session_id, state)
+    store.log_commands(session_id, body.prompt, result)
+    return _session_payload(session_id, state, result)
+
+
+# 生成图片的静态目录（注册在前端 catch-all 之前）
+app.mount('/media', StaticFiles(directory=imagegen.IMG_DIR), name='media')
+# 前端静态文件（放在最后注册，避免吞掉 /api/* 与 /media/*）
 _FRONTEND_DIR = os.path.join(os.path.dirname(__file__), '..', 'frontend')
 app.mount('/', StaticFiles(directory=_FRONTEND_DIR, html=True), name='frontend')

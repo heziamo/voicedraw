@@ -108,22 +108,26 @@ _NTH_RE = re.compile('第(' + NUM_CLASS + ')个')
 
 
 def resolve_targets(state, seg):
-    """「它 / 第N个X / 所有X / 最后一个 / 这组」→ 具体图形列表。"""
+    """「它 / 第N个X / 所有X / 最后一个 / 这组 / 图片」→ 具体图形列表。"""
     seg = _TARGET_HEAD.sub('', seg or '')
     shapes = state['scene']['shapes']
     if not shapes:
         return {'list': [], 'desc': '', 'empty': True}
     sh = find_shape(seg)
+    # 图片/照片 没有「画」的入口，但可作为编辑目标（移动/缩放/删除…）
+    img_kw = bool(re.search(r'图片|照片|图像|这张图|那张图', seg))
+    want = sh['type'] if sh else ('image' if img_kw else None)
+    label = sh['label'] if sh else ('图片' if img_kw else None)
     if re.search(r'全部|所有|每个|每一个|都', seg):
-        lst = [s for s in shapes if s['type'] == sh['type']] if sh else list(shapes)
-        return {'list': lst, 'desc': ('所有' + sh['label']) if sh else '全部图形'}
+        lst = [s for s in shapes if s['type'] == want] if want else list(shapes)
+        return {'list': lst, 'desc': ('所有' + label) if want else '全部图形'}
     m = _NTH_RE.search(seg)
     if m:
         n = cn2num(m.group(1))
-        pool = [s for s in shapes if s['type'] == sh['type']] if sh else shapes
+        pool = [s for s in shapes if s['type'] == want] if want else shapes
         item = pool[n - 1] if 0 < n <= len(pool) else None
         return {'list': [item] if item else [],
-                'desc': '第%d个%s' % (n, sh['label'] if sh else '图形')}
+                'desc': '第%d个%s' % (n, label or '图形')}
     if re.search(r'最后|最近|刚才|刚刚|它|这个|那个|上一个|这组|那组', seg):
         last = shapes[-1]
         # 若最近的图形属于某个组（复合模板），整组一起作为目标
@@ -131,8 +135,8 @@ def resolve_targets(state, seg):
             grp = [s for s in shapes if s.get('group') == last['group']]
             return {'list': grp, 'desc': '最近的图形'}
         return {'list': [last], 'desc': '最近的图形'}
-    if sh:
-        return {'list': [s for s in shapes if s['type'] == sh['type']], 'desc': '所有' + sh['label']}
+    if want:
+        return {'list': [s for s in shapes if s['type'] == want], 'desc': '所有' + label}
     sel = [s for s in shapes if s['id'] in state['selected']]
     if sel:
         return {'list': sel, 'desc': '选中的图形'}
@@ -274,6 +278,57 @@ def _i_template(state, t):
     state['selected'] = [p['id'] for p in parts]
     return _ok('已画一个%s（%d 个部件）%s' % (
         tpl['label'], len(parts), ('（%s）' % pos['label']) if pos['label'] else ''))
+
+
+# ---------------- 文生图（大模型） ----------------
+
+_GEN_PREFIX_RE = re.compile(
+    r'^(请|帮我|帮忙|给我)?(用|调用)?([Aa][Ii]|大模型|模型|智能)?'
+    r'(生成|绘制|画出|画|来)(一张|一幅|一个|个|张|幅)?')
+_GEN_SUFFIX_RE = re.compile(r'(的)?(图片|照片|图像|图画|画面|图)$')
+
+
+def _gen_match(t):
+    has_pic = re.search(r'图片|照片|图像|图画|画面', t)
+    # 显式点名 AI/大模型 → 直接走文生图（即便没说「图片」）
+    if re.search(r'[Aa][Ii]画|用[Aa][Ii]|大模型|用模型画|文生图|智能绘制', t):
+        return True
+    # 「生成…」+ 图片词或量词
+    if re.search(r'生成', t) and (has_pic or re.search(r'一张|一幅', t)):
+        return True
+    # 「画一张猫的图片」这类：有画+图片且不是已知图形/模板
+    if re.search(r'画', t) and has_pic and not find_shape(t) and not find_template(t):
+        return True
+    return False
+
+
+def _extract_prompt(t):
+    s = _GEN_PREFIX_RE.sub('', t)
+    s = _GEN_SUFFIX_RE.sub('', s)
+    s = re.sub(r'^(一张|一幅|一个|这|那)', '', s)
+    return s.strip()
+
+
+def _i_generate(state, t):
+    """解析阶段只识别意图并抽取提示词；真正的生成由 /generate 端点完成（耗时）。"""
+    prompt = _extract_prompt(t)
+    if not prompt:
+        return _err('没听清要生成什么图片，试试「生成一张星空下的城堡」')
+    r = _ok('正在生成「%s」…' % (prompt if len(prompt) <= 18 else prompt[:17] + '…'),
+            action='generate_image')
+    r['prompt'] = prompt
+    return r
+
+
+def add_image(state, src, w, h, prompt):
+    """把生成好的图片作为对象加入场景（供 /generate 端点调用）。"""
+    _snapshot(state)
+    aspect = (w / h) if h else 1
+    sp = _new_shape(state, type='image', x=LOGICAL_W / 2, y=LOGICAL_H / 2,
+                    size=240, src=src, aspect=aspect, prompt=(prompt or '')[:60], name='AI 图片')
+    state['scene']['shapes'].append(sp)
+    state['selected'] = [sp['id']]
+    return sp
 
 
 # ---------------- 文字 ----------------
@@ -764,6 +819,7 @@ INTENTS = [
     ('redo', lambda t: re.search(r'重做|恢复上一步|恢复操作|前进一步', t), _i_redo),
     ('clear', lambda t: re.search(r'清空|清屏|全部删除|删除全部|全部清除|清除全部|重新开始|重来', t), _i_clear),
     ('background', lambda t: re.search(r'背景|底色|整个画布|^画布', t) and find_color(t), _i_background),
+    ('generate', lambda t: _gen_match(t), _i_generate),
     ('template', lambda t: _DRAW_VERB_RE.search(t) and find_template(t) and not find_shape(t), _i_template),
     ('text', lambda t: _TEXT_VERB_RE.match(t), _i_text),
     ('select', lambda t: _SELECT_RE.match(t), _i_select),
