@@ -7,11 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import imagegen, store
+from . import imagegen, llm, store
 from .nlu import LOGICAL_H, LOGICAL_W, handle_utterance, new_state
 from .nlu.engine import add_image
 
-VERSION = '1.1.0'
+VERSION = '1.2.0'
 
 app = FastAPI(title='VoiceDraw API', version=VERSION)
 app.add_middleware(
@@ -46,7 +46,8 @@ def _session_payload(session_id, state, results=None):
 @app.get('/api/healthz')
 def healthz():
     return {'status': 'ok', 'version': VERSION, 'store': store.BACKEND_NAME,
-            'image': imagegen.status()}
+            'image': imagegen.status(),
+            'llm': {'provider': llm.PROVIDER, 'model': llm.MODEL, 'configured': llm.available()}}
 
 
 @app.post('/api/sessions', status_code=201)

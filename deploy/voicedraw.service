@@ -14,6 +14,9 @@ Environment=VOICEDRAW_DATA_DIR=/opt/voicedraw/data
 # 未配置 Key 时自动回退到占位图。.env 不进 git、不被 rsync 覆盖。
 Environment=VOICEDRAW_IMAGE_PROVIDER=zhipu
 Environment=VOICEDRAW_IMAGE_MODEL=cogview-3-flash
+# LLM 兜底理解（规则没听懂时纠错口误）：复用上面的智谱 Key，默认免费的 glm-4-flash
+Environment=VOICEDRAW_LLM_PROVIDER=zhipu
+Environment=VOICEDRAW_LLM_MODEL=glm-4-flash
 EnvironmentFile=-/opt/voicedraw/.env
 # uvicorn 内置 TLS：Web Speech API 需要 https 安全上下文才能授权麦克风
 ExecStart=/opt/voicedraw/venv/bin/uvicorn app.main:app \

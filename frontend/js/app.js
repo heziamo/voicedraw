@@ -355,19 +355,42 @@ function applyState(data) {
 
 async function handleUtterance(raw) {
   if (!sessionId) return;
+  setPending(true);
   const t0 = performance.now();
   let data;
   try { data = await api('POST', '/api/sessions/' + sessionId + '/commands', { text: raw }); }
-  catch (e) { logItem(raw, '后端请求失败：' + e.message, 'err'); return; }
+  catch (e) { logItem(raw, '后端请求失败：' + e.message, 'err'); setPending(false); return; }
   const ms = Math.round(performance.now() - t0);
+  setPending(false);
   applyState(data);
   const results = data.results || [];
   if (!results.length) return;
   const msgs = [];
-  for (const r of results) { msgs.push(r.msg); logItem(r.clause || raw, r.msg, r.ok ? 'ok' : 'err', ms); handleAction(r.action, r); }
+  for (const r of results) {
+    msgs.push(r.msg);
+    const said = (r.via === 'ai' && r.original) ? r.original : (r.clause || raw);
+    logItem(said, r.msg, r.ok ? 'ok' : 'err', ms, r.via === 'ai' ? (r.corrected || r.clause) : null);
+    handleAction(r.action, r);
+  }
   document.getElementById('lat-badge').textContent = '后端 ' + ms + 'ms';
   const summary = msgs.join('；');
   speak(summary.length > 56 ? summary.slice(0, 54) + '…' : summary);
+}
+
+let pendingTimer = null;
+function setPending(on) {
+  // 后端 >300ms（多半在调 LLM 纠错）才提示，避免快指令闪烁
+  clearTimeout(pendingTimer);
+  if (on) {
+    pendingTimer = setTimeout(() => {
+      if (ui.started && !ui.speaking) {
+        document.getElementById('mic-state').textContent = '理解中…';
+        document.getElementById('mic-desc').textContent = 'AI 正在理解这句话';
+      }
+    }, 300);
+  } else {
+    updateChrome();
+  }
 }
 
 function handleAction(action, r) {
@@ -491,12 +514,15 @@ let hintIdx = 0;
 setInterval(() => { if (!scene.shapes.length) { hintIdx = (hintIdx + 1) % HINTS.length; hintCmdEl.textContent = HINTS[hintIdx]; } }, 4000);
 
 function showTranscript(text, isFinal) { transcriptEl.textContent = text; transcriptEl.classList.toggle('final', isFinal); }
-function logItem(said, res, kind, ms) {
+function logItem(said, res, kind, ms, aiCorrected) {
   const empty = logEl.querySelector('.rail-empty'); if (empty) empty.remove();
   const el = document.createElement('div'); el.className = 'log-item ' + kind;
   const time = new Date().toTimeString().slice(0, 8), lat = ms != null ? ' · ' + ms + 'ms' : '';
-  el.innerHTML = '<span class="log-time">' + time + lat + '</span>'
-    + '<div class="log-said">“' + escapeHtml(said) + '”</div><div class="log-res">' + escapeHtml(res) + '</div>';
+  let html = '<span class="log-time">' + time + lat + '</span>'
+    + '<div class="log-said">“' + escapeHtml(said) + '”</div>';
+  if (aiCorrected) html += '<div class="log-ai"><span class="ai-tag">AI</span>理解为「' + escapeHtml(aiCorrected) + '」</div>';
+  html += '<div class="log-res">' + escapeHtml(res) + '</div>';
+  el.innerHTML = html;
   logEl.prepend(el);
   while (logEl.children.length > 120) logEl.lastChild.remove();
 }

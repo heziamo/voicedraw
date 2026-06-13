@@ -860,8 +860,38 @@ def parse_clause(state, t):
     return r
 
 
+def _scene_summary(state):
+    from collections import Counter
+    shapes = state['scene']['shapes']
+    if not shapes:
+        return '画布为空'
+    cnt = Counter(SHAPE_LABEL.get(s['type'], s['type']) for s in shapes)
+    return '画布现有：' + '、'.join('%s×%d' % (k, v) for k, v in cnt.items())
+
+
+def _llm_rescue(state, clause):
+    """规则没听懂时，让 GLM 把口语/错字还原成标准指令再执行。返回结果列表或 None。"""
+    try:
+        from app import llm
+    except ImportError:
+        return None
+    if not llm.available():
+        return None
+    canon = llm.interpret(clause, _scene_summary(state))
+    if not canon or canon.strip().upper() == 'NONE':
+        return None
+    out = []
+    for cc in split_clauses(normalize(canon)):
+        r = parse_clause(state, cc)
+        r['via'] = 'ai'
+        r['corrected'] = canon
+        r['original'] = clause
+        out.append(r)
+    return out or None
+
+
 def handle_utterance(state, raw):
-    """完整流水线：归一化 → 分句 → 逐句解析执行。返回结果列表。"""
+    """完整流水线：归一化 → 分句 → 逐句解析；规则失败的子句交 LLM 兜底纠错。"""
     t = normalize(raw)
     if not t:
         return []
@@ -871,4 +901,13 @@ def handle_utterance(state, raw):
             return [{'ok': True, 'msg': '我在听', 'action': 'unmute',
                      'intent': 'unmute', 'clause': t}]
         return []  # 静音模式下忽略其他指令
-    return [parse_clause(state, c) for c in split_clauses(t)]
+    results = []
+    for c in split_clauses(t):
+        r = parse_clause(state, c)
+        if r['intent'] == 'fallback':
+            rescued = _llm_rescue(state, c)
+            if rescued:
+                results.extend(rescued)
+                continue
+        results.append(r)
+    return results

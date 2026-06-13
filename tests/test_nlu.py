@@ -400,3 +400,50 @@ def test_image_is_editable_target(state):
     assert run(state, '把图片放大')[0]['ok']
     assert shapes(state)[0]['size'] > size0
     assert run(state, '删除图片')[0]['ok'] and shapes(state) == []
+
+
+# ---------- LLM 兜底理解（规则失败时大模型纠错） ----------
+
+def test_llm_rescue_corrects_misheard(state, monkeypatch):
+    """规则听不懂「红色的缘」，LLM 还原为「画一个红色的圆」并执行。"""
+    import app.llm as llm
+    monkeypatch.setattr(llm, 'available', lambda: True)
+    monkeypatch.setattr(llm, 'interpret', lambda text, ctx='': '画一个红色的圆')
+    r = run(state, '画一个红色的缘')
+    assert r[0]['ok'] and r[0]['via'] == 'ai' and r[0]['original'] == '画一个红色的缘'
+    s = shapes(state)[0]
+    assert s['type'] == 'circle' and s['color'] == '#e5484d'
+
+
+def test_llm_rescue_multi_command(state, monkeypatch):
+    import app.llm as llm
+    monkeypatch.setattr(llm, 'available', lambda: True)
+    monkeypatch.setattr(llm, 'interpret', lambda text, ctx='': '画一个圆然后画一个方块')
+    r = run(state, '随便整两个图形')
+    assert len(shapes(state)) == 2 and all(x.get('via') == 'ai' for x in r)
+
+
+def test_llm_rescue_none_keeps_fallback(state, monkeypatch):
+    """LLM 判定非绘图指令（NONE）时，保持『没听懂』。"""
+    import app.llm as llm
+    monkeypatch.setattr(llm, 'available', lambda: True)
+    monkeypatch.setattr(llm, 'interpret', lambda text, ctx='': 'NONE')
+    r = run(state, '明天天气怎么样')
+    assert r[0]['intent'] == 'fallback' and not r[0]['ok']
+
+
+def test_no_llm_keeps_fallback(state):
+    """未配置 Key 时（测试环境无 key），规则失败仍是普通 fallback，不报错。"""
+    r = run(state, '画一个红色的缘')
+    assert r[0]['intent'] == 'fallback'
+
+
+def test_clean_command_skips_llm(state, monkeypatch):
+    """规则能懂的指令不应触发 LLM（快路径），interpret 被调用则抛错。"""
+    import app.llm as llm
+    monkeypatch.setattr(llm, 'available', lambda: True)
+    def boom(*a, **k):
+        raise AssertionError('clean command should not call LLM')
+    monkeypatch.setattr(llm, 'interpret', boom)
+    r = run(state, '画一个红色的圆')
+    assert r[0]['ok'] and r[0].get('via') != 'ai'
