@@ -76,3 +76,7 @@ systemctl restart voicedraw    # 重启即启用真实生成，无需改代码
 画布（背景/网格/缩放/撤销重做/导出 PNG）。共 30 个意图，72 个 pytest。
 
 详细架构、指令能力清单与未完成项说明见 [DESIGN.md](DESIGN.md)。
+
+## 许可证
+
+[MIT](LICENSE) © 2026 heziamo
