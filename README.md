@@ -48,6 +48,19 @@ feat(nlu):      中文指令 NLU 引擎 + pytest
 chore:          项目脚手架
 ```
 
+## 启用 AI 文生图
+
+说「生成一张星空下的城堡的图片」即调用大模型出图，图片作为可编辑对象进画布。
+默认智谱 CogView；**未配置 Key 时回退占位图**，流程照常跑通。配置真实 Key：
+
+```bash
+ssh root@117.50.181.92
+echo 'VOICEDRAW_IMAGE_API_KEY=你的智谱key' > /opt/voicedraw/.env
+systemctl restart voicedraw    # 重启即启用真实生成，无需改代码
+```
+
+`.env` 不进 git、不被部署覆盖。换服务商改 `VOICEDRAW_IMAGE_PROVIDER`/`VOICEDRAW_IMAGE_MODEL`。
+
 ## 能力概览（v2）
 
 20 种图形（圆/方/三角/五角星/六边形/五边形/菱形/心形/圆环/月亮/云朵/闪电/十字/对话气泡/椭圆/长方/直线/竖线/箭头/文字）·
