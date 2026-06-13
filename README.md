@@ -4,6 +4,12 @@
 
 **线上**：https://117.50.181.92:8443/ （自签名证书，首次访问点「高级 → 继续前往」；用 Chrome/Edge 并允许麦克风）
 
+## 演示
+
+![声笔 VoiceDraw 实际使用演示](docs/demo.gif)
+
+> 线上部署的真实录屏，依次说出：「画一个红色的圆」→「画一个笑脸放在右上角」→「画三个并排的蓝色方块」→「把第一个方块变成橙色」→「画一个红色的鱼」（既非图形也非模板的实物 → 自动走 **AI 文生图**，由智谱 CogView 实时出图）→「把图片放大」。每条指令都经 `handleUtterance()` —— 与语音识别 `onresult` 完全相同的入口。高清版：[docs/demo.mp4](docs/demo.mp4)。
+
 - **前端**：原生 HTML/CSS/JS（Linear 设计系统）。浏览器负责麦克风采集、Web Speech API 语音识别、Canvas 渲染、TTS 播报。
 - **后端**：Python FastAPI。负责中文指令 NLU 解析（词典 + 规则，零外部依赖）、场景状态管理、撤销/重做、SQLite 持久化与指令审计日志。
 - **部署**：CentOS 7 + systemd + 自签名 TLS（Web Speech API 要求 https 安全上下文）。
