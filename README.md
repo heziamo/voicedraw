@@ -6,11 +6,11 @@
 
 > 🎬 线上实录（点开上图看高清 [mp4](docs/demo.mp4)）：依次说出「画一个红色的圆 → 画一个笑脸放右上角 → 画三个并排蓝色方块 → 把第一个方块变成橙色 → **画一个红色的鱼**（实物 → 自动走 AI 文生图，智谱 CogView 实时出图）→ 把图片放大」。每条指令都经 `handleUtterance()`——与语音识别 `onresult` 完全相同的入口。
 
-**线上**：https://117.50.181.92:8443/ （自签名证书，首次访问点「高级 → 继续前往」；用 Chrome/Edge 并允许麦克风）
+**线上**：https://voicedraw.duckdns.org:8443/ （Let's Encrypt 受信任证书，绿锁无警告；用 Chrome/Edge 并允许麦克风）
 
 - **前端**：原生 HTML/CSS/JS（Linear 设计系统）。浏览器负责麦克风采集、Web Speech API 语音识别、Canvas 渲染、TTS 播报。
 - **后端**：Python FastAPI。负责中文指令 NLU 解析（词典 + 规则，零外部依赖）、场景状态管理、撤销/重做、SQLite 持久化与指令审计日志。
-- **部署**：CentOS 7 + systemd + 自签名 TLS（Web Speech API 要求 https 安全上下文）。
+- **部署**：CentOS 7 + systemd + Let's Encrypt TLS（DuckDNS 域名 + DNS-01 校验，acme.sh 自动续期；Web Speech API 要求 https 安全上下文）。
 
 ## 快速开始（本地）
 
@@ -31,12 +31,31 @@ pytest
 ## 部署
 
 ```bash
-bash deploy/deploy.sh   # rsync 到服务器 + venv(清华源) + 自签名证书 + systemd
+bash deploy/deploy.sh   # rsync 到服务器 + venv(清华源) + systemd（保留已有 Let's Encrypt 证书）
 ```
 
 部署目标 CentOS 7 / Python 3.8 / 2GB。uvicorn 内置 TLS（Web Speech API 要求 https），
 存储自动回退到 JSON 文件后端（服务器 Python 缺 `_sqlite3` 扩展）。
 若外网打不开，在云服务器安全组放行 TCP 8443。
+
+### HTTPS 受信任证书（去掉浏览器安全警告）
+
+服务器在国内、未 ICP 备案，GFW 会重置国际到 80/443 的请求，Let's Encrypt 的 HTTP-01 校验必失败。
+解法是用 **DNS-01 校验**（只加一条 DNS TXT 记录，不走入站连接、不受影响）+ 一个可控 DNS 的域名（这里用免费的 DuckDNS）：
+
+```bash
+# 服务器上（acme.sh + DuckDNS DNS-01，自动续期）
+git clone --depth 1 https://github.com/acmesh-official/acme.sh.git && cd acme.sh && ./acme.sh --install -m 你的邮箱
+~/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+export DuckDNS_Token=你的duckdns_token
+~/.acme.sh/acme.sh --issue --dns dns_duckdns -d voicedraw.duckdns.org
+~/.acme.sh/acme.sh --install-cert -d voicedraw.duckdns.org --ecc \
+  --key-file /opt/voicedraw/certs/key.pem --fullchain-file /opt/voicedraw/certs/cert.pem \
+  --reloadcmd "systemctl restart voicedraw"
+```
+
+之后用 `https://voicedraw.duckdns.org:8443/` 访问即绿锁无警告；acme.sh 每天 cron 自动续期、续期后自动重启服务。
+（用裸 IP 访问仍会因证书名称不符报警告——请用域名。）
 
 ## 提交记录
 
