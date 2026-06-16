@@ -19,10 +19,12 @@ Environment=VOICEDRAW_LLM_PROVIDER=zhipu
 Environment=VOICEDRAW_LLM_MODEL=glm-4-flash
 EnvironmentFile=-/opt/voicedraw/.env
 # uvicorn 内置 TLS：Web Speech API 需要 https 安全上下文才能授权麦克风
+# --ssl-ciphers：uvicorn 默认 "TLSv1" 只给 CBC-SHA 老套件，现代 Chrome 已弃用 → 必须显式开 AES-GCM
 ExecStart=/opt/voicedraw/venv/bin/uvicorn app.main:app \
     --host 0.0.0.0 --port 8443 \
     --ssl-keyfile /opt/voicedraw/certs/key.pem \
-    --ssl-certfile /opt/voicedraw/certs/cert.pem
+    --ssl-certfile /opt/voicedraw/certs/cert.pem \
+    --ssl-ciphers "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES128-SHA"
 Restart=always
 RestartSec=3
 
